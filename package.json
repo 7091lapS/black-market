@@ -1,5 +1,5 @@
 {
-  "name": "crap",
+  "name": "black-market",
   "version": "0.0.1",
   "description": "scraping as a service",
   "index": "app.js",
@@ -16,6 +16,7 @@
   "dependencies": {
     "cheerio": "^0.20.0",
     "hapi": "^13.3.0",
+    "mongoose": "^4.4.14",
     "phantom": "^2.0.10",
     "ramda": "^0.19.1"
   }

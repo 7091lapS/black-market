@@ -1,34 +1,84 @@
 import R from 'ramda';
-import {plans} from '../plans/templates';
+import {getPlans, getPlanByName, addPlan} from '../plans/services/Plan';
 import {refinePlan} from '../plans/planner';
 import {execute} from '../robber/robber';
-import {clean} from '../laundry/laundry'
+import {clean} from '../laundry/laundry';
 
-// idToUrl :: String -> String
-const idToUrl = url => `/${url}`;
+// nameToUrl :: String -> String
+const nameToUrl = url => `/scrape/${url}`;
 
-export const api = {
-    method: 'GET',
-    path: '/api',
-    handler: (request, reply) => reply(R.map(plan => {
-        return {
-            link: idToUrl(plan.id),
-            target: plan.entryPoint,
-            params: plan.planDetailsKeys,
-            result: plan.laundryPlan
+// paramsToQueryString :: [String] -> String
+const paramsToQueryString = params => R.reduce(
+    (prev, cur) => `${prev}${prev !== '?' ? '&' : ''}${cur}=`,
+    params.length ? '?' : '',
+    params
+);
+
+// Plan's routes
+// GET: list available Plans
+// POST: submit a new Plan
+const plansRoutes = [{
+        method: 'GET',
+        path: '/plans',
+        handler: (request, reply) => getPlans().then(plans => {
+            reply(plans);
+        })
+    },{
+        method: 'POST',
+        path: '/plans',
+        handler: (request, reply) =>  {
+            addPlan(request.payload)
+            .then(plan => {
+                reply(plan);
+            })
+            .catch((err) => { reply(err); })
         }
-    }, plans))
+}];
+
+// planToPreview :: Plan -> Object
+const planToPreview = plan => {
+    return {
+        id: plan._id,
+        link: `${nameToUrl(plan.name)}${paramsToQueryString(plan.planDetailsKeys)}`,
+        target: plan.entryPoint,
+        params: plan.planDetailsKeys,
+        result: plan.laundryPlan
+    };
 };
 
-export const routes = R.map(plan => {
-    return {
-        method: 'POST',
-        path: idToUrl(plan.id),
-        handler: (request, reply) => {
-            const url = plan.entryPoint;
-            const instructions = refinePlan(plan.planTemplate, R.pick(plan.planDetailsKeys, request.payload));
-            const normalize = pageContent => clean(plan.laundryPlan, pageContent);
-            execute(url, instructions, R.compose(reply, normalize));
-        }
+// scrapes' index routes
+// GET: list available scraping endpoints
+const scrapeIndexRoutes = {
+    method: 'GET',
+    path: '/scrape',
+    handler: (request, reply) => R.composeP(
+        reply,
+        R.map(planToPreview),
+        getPlans
+    )()
+};
+
+// scrapes' endpoints
+// GET: look for planName's plan and run scraping
+const scrapeRoutes = {
+    method: 'GET',
+    path: '/scrape/{planName}',
+    handler: (request, reply) => {
+        R.composeP(
+            (plan) => {
+                const url = plan.entryPoint;
+                const instructions = refinePlan(plan.planTemplate, R.pick(plan.planDetailsKeys, request.query));
+                const normalize = pageContent => clean(plan.laundryPlan, pageContent);
+                execute(url, instructions, R.compose(reply, normalize));
+            },
+            getPlanByName
+        )(request.params.planName)
     }
-}, plans);
+}
+
+// getRoutes :: _ -> [Routes]
+export const getRoutes = _ => [
+    plansRoutes,
+    scrapeIndexRoutes,
+    scrapeRoutes
+];
