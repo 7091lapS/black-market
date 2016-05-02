@@ -1,0 +1,17 @@
+{
+    "name": "github_search",
+    "entryPoint": "https://github.com/",
+    "planTemplate": [
+        ["TYPE", ".header-search-input", "search_input_text"],
+        ["SUBMIT_FORM", ".js-site-search-form"],
+        ["WAIT_UNTILL_URL_CHANGE"]
+    ],
+    "planDetailsKeys": ["search_input_text"],
+    "laundryPlan": {
+        "links": {
+            "query": ".js-repo-list .repo-list-name a",
+            "url": "href",
+            "text": "getText"
+        }
+    }
+}
